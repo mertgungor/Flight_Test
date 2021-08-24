@@ -5,6 +5,8 @@
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
+#include <mavros_msgs/CommandTOL.h>
+#include <mavros_msgs/SetMavFrame.h>
 #include <sensor_msgs/BatteryState.h>
 #include <sensor_msgs/Image.h>
 
@@ -219,7 +221,7 @@ int main(int argc, char **argv){
 
     // Used for setting the flight mode
     mavros_msgs::SetMode set_mode;
-    set_mode.request.custom_mode = "OFFBOARD";
+    set_mode.request.custom_mode = "GUIDED";
     
     // Used for sending arm command 
     mavros_msgs::CommandBool arm;
@@ -227,9 +229,9 @@ int main(int argc, char **argv){
 
     ros::Time last_request_time = ros::Time::now();
     while(ros::ok()){
-        if( (current_state.mode != "OFFBOARD") && (ros::Time::now()-last_request_time > ros::Duration(5.0)) ){
+        if( (current_state.mode != "GUIDED") && (ros::Time::now()-last_request_time > ros::Duration(5.0)) ){
             if( set_flight_mode.call(set_mode) && set_mode.response.mode_sent){
-                ROS_INFO_STREAM("Offboard enabled");
+                ROS_INFO_STREAM("GUIDED enabled");
             }
             last_request_time = ros::Time::now();
         }
@@ -237,15 +239,97 @@ int main(int argc, char **argv){
             if( !current_state.armed && (ros::Time::now() - last_request_time > ros::Duration(5.0)) ){
                 if( arm_command.call(arm) && arm.response.success){
                     ROS_INFO_STREAM("Vehicle armed");
+
+                    ros::ServiceClient takeoff_cl = nh.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/takeoff");
+                    mavros_msgs::CommandTOL srv_takeoff;
+                    srv_takeoff.request.altitude = 5;
+                    srv_takeoff.request.latitude = 0;
+                    srv_takeoff.request.longitude = 0;
+                    srv_takeoff.request.min_pitch = 0;
+                    srv_takeoff.request.yaw = 0;
+                    if(takeoff_cl.call(srv_takeoff)){ // takeoff
+                    ROS_ERROR("srv_takeoff send ok %d", srv_takeoff.response.success);
+                    }else{
+                    ROS_ERROR("Failed Takeoff");
+                    }
+
+                    ros::Rate wait_10sec(0.1); // 10 second sleep 
+                    ros::Rate wait_5sec(0.2); // 5 second sleep 
+                    wait_10sec.sleep();
+
+                    // .................
+
+
+                    
+                    pose_command.pose.position.x = 0;
+                    pose_command.pose.position.y = 5;
+                    pose_command.pose.position.z = 5;
+
+                    ROS_INFO_STREAM("MOVING");
+                    relative_position_command_publisher.publish(pose_command);
+                    ros::spinOnce();
+
+                    wait_5sec.sleep();
+
+
+
+                    pose_command.pose.position.x = 5;
+                    pose_command.pose.position.y = 5;
+                    pose_command.pose.position.z = 5;
+
+                    ROS_INFO_STREAM("MOVING");
+                    relative_position_command_publisher.publish(pose_command);
+                    ros::spinOnce();
+
+                    wait_5sec.sleep();
+
+
+
+                    pose_command.pose.position.x = 5;
+                    pose_command.pose.position.y = 0;
+                    pose_command.pose.position.z = 5;
+
+                    ROS_INFO_STREAM("MOVING");
+                    relative_position_command_publisher.publish(pose_command);
+                    ros::spinOnce();
+
+                    wait_5sec.sleep();
+
+
+
+                    pose_command.pose.position.x = 0;
+                    pose_command.pose.position.y = 0;
+                    pose_command.pose.position.z = 5;
+
+                    ROS_INFO_STREAM("MOVING");
+                    relative_position_command_publisher.publish(pose_command);
+                    ros::spinOnce();
+
+                    wait_5sec.sleep();
+                    
+
+                    // .................
+
+
+                    srv_takeoff.request.altitude = 0;
+                    ros::ServiceClient land_cl = nh.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/land");
+                    if(land_cl.call(srv_takeoff)){
+                    ROS_ERROR("srv_takeoff send ok %d", srv_takeoff.response.success);
+                    }else{
+                    ROS_ERROR("Failed Takeoff");
+                    }
+
+                    wait_10sec.sleep(); // waiting inorder to land properly 
+                    wait_10sec.sleep();
+
+                    return 0;
+
                 }
                 last_request_time = ros::Time::now();
             }
         }
 
-        //Here we are constantly publishing the position.
-		relative_position_command_publisher.publish(pose_command);
-        //ROS_INFO_STREAM(pose_command.pose.position.z);
-    
+        
         ros::spinOnce();
         rate.sleep();
     }

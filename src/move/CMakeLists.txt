@@ -27,8 +27,14 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 
 
 add_executable(handler src/handler.cpp)
-add_executable(commander src/commander.cpp)
-target_link_libraries(commander ${catkin_LIBRARIES})
+add_executable(takeoff_land src/takeoff_land.cpp)
+add_executable(local_pose src/local_pose.cpp)
+target_link_libraries(local_pose ${catkin_LIBRARIES})
+
+add_executable(square src/square.cpp)
+target_link_libraries(square ${catkin_LIBRARIES})
+
+target_link_libraries(takeoff_land ${catkin_LIBRARIES})
 target_link_libraries(handler ${catkin_LIBRARIES})
 add_library(move src/handler.cpp)
 target_link_libraries(move ${catkin_LIBRARIES})
